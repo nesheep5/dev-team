@@ -1,0 +1,11 @@
+{"ts":"2026-08-14T09:30:00+09:00","agent":"main","ticket":null,"event":"loop","detail":{"action":"start"}}
+{"ts":"2026-08-14T09:31:00+09:00","agent":"main","ticket":12,"event":"stage","stage":"selected"}
+{"ts":"2026-08-14T09:32:00+09:00","agent":"main","ticket":12,"event":"stage","stage":"implementing"}
+{"ts":"2026-08-14T09:50:00+09:00","agent":"main","ticket":12,"event":"stage","stage":"blocked","detail":{"reason":"外部 API の仕様が未確定"}}
+{"ts":"2026-08-14T09:55:00+09:00","agent":"main","ticket":10,"event":"stage","stage":"selected"}
+{"ts":"2026-08-14T09:56:00+09:00","agent":"main","ticket":10,"event":"stage","stage":"implementing"}
+{"ts":"2026-08-14T10:20:00+09:00","agent":"main","ticket":10,"event":"stage","stage":"verifying"}
+{"ts":"2026-08-14T10:25:00+09:00","agent":"main","ticket":10,"event":"stage","stage":"pr-created","detail":{"pr":51}}
+{"ts":"2026-08-14T10:27:00+09:00","agent":"main","ticket":10,"event":"stage","stage":"review","detail":{"iteration":1,"reviewers":["code-reviewer","pr-test-analyzer","silent-failure-hunter"]}}
+{"ts":"2026-08-14T10:40:00+09:00","agent":"main","ticket":10,"event":"log","detail":{"text":"レビュー指摘 2 件を修正"}}
+{"ts":"2026-08-14T10:41:00+09:00","agent":"main","ticket":10,"event":"stage","stage":"fixing"}

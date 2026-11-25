@@ -1,0 +1,11 @@
+{
+  "issues": [
+    { "number": 10, "title": "ログイン画面の再設計", "state": "OPEN", "labels": [{ "name": "status:in-progress" }], "body": "" },
+    { "number": 12, "title": "API のレート制限", "state": "OPEN", "labels": [{ "name": "status:blocked" }], "body": "" },
+    { "number": 15, "title": "通知メールのテンプレート", "state": "OPEN", "labels": [{ "name": "status:ready" }], "body": "## 補足\ndepends: #12" },
+    { "number": 18, "title": "監査ログの保存期間", "state": "OPEN", "labels": [{ "name": "status:ready" }, { "name": "priority:high" }], "body": "" }
+  ],
+  "prs": [
+    { "number": 51, "state": "OPEN", "headRefName": "ticket/10-login-redesign" }
+  ]
+}

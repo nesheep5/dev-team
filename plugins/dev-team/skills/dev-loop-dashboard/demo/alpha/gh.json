@@ -1,0 +1,14 @@
+{
+  "issues": [
+    { "number": 3, "title": "使われていない API の削除", "state": "CLOSED", "labels": [], "body": "" },
+    { "number": 10, "title": "キーボードショートカット", "state": "OPEN", "labels": [{ "name": "status:in-progress" }], "body": "" },
+    { "number": 15, "title": "設定画面からショートカットを変更する", "state": "OPEN", "labels": [{ "name": "status:ready" }], "body": "## 補足\ndepends: #10" },
+    { "number": 16, "title": "ショートカット一覧の印刷", "state": "OPEN", "labels": [{ "name": "status:ready" }], "body": "## 補足\ndepends: #15" },
+    { "number": 20, "title": "検索結果のページング", "state": "OPEN", "labels": [{ "name": "status:blocked" }], "body": "" },
+    { "number": 29, "title": "CI のキャッシュ", "state": "OPEN", "labels": [{ "name": "status:in-progress" }, { "name": "priority:high" }], "body": "" },
+    { "number": 39, "title": "ダークモード", "state": "OPEN", "labels": [{ "name": "status:ready" }], "body": "" }
+  ],
+  "prs": [
+    { "number": 42, "state": "OPEN", "headRefName": "ticket/10-keyboard-shortcuts" }
+  ]
+}

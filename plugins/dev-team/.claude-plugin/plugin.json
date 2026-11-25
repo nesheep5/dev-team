@@ -1,0 +1,11 @@
+{
+  "name": "dev-team",
+  "version": "0.1.0",
+  "description": "要件を GitHub Issue にし、status:ready の Issue をワークツリーでの実装・PR・3 エージェントの反復レビュー・squash マージまで連続で処理する開発ループを、Claude Code のスキル群で回す",
+  "author": {
+    "name": "nesheep5"
+  },
+  "homepage": "https://github.com/nesheep5/dev-team",
+  "repository": "https://github.com/nesheep5/dev-team",
+  "license": "MIT"
+}

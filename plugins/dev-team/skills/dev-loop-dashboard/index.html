@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dev-loop dashboard</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1d2026; --card: #262a32; --border: #333842;
+    --text: #d7dae0; --dim: #8a919e; --accent: #4fc3f7; --ok: #66bb6a;
+    --warn: #ffb74d; --bad: #ef5350;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 13px/1.5 -apple-system, "Hiragino Sans", sans-serif;
+    display: flex; flex-direction: column; gap: 8px; padding: 8px; min-height: 100vh;
+  }
+  header { display: flex; gap: 16px; align-items: baseline; padding: 8px 12px; background: var(--panel); border-radius: 8px; position: sticky; top: 0; z-index: 1; }
+  header .repo { font-size: 16px; font-weight: 700; }
+  header .stat b, .project-head .stat b { color: var(--accent); }
+  header .warn, .project-head .warn { color: var(--warn); }
+  header .bad, .project-head .bad { color: var(--bad); }
+  header .spacer, .project-head .spacer { flex: 1; }
+  /* プロジェクトごとの縦積みセクション（タブ切替にしない: 開いていないプロジェクトの停止・blocked に気づけないため） */
+  .project { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+  .project.has-error { border-color: var(--warn); }
+  .project-head { display: flex; gap: 16px; align-items: baseline; padding: 4px 8px; }
+  .project-head .name { font-size: 15px; font-weight: 700; }
+  .project-head .path { color: var(--dim); font-size: 12px; }
+  .banner { background: #3a2f1d; color: var(--warn); padding: 6px 12px; border-radius: 6px; }
+  .banner:empty { display: none; }
+  .line { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; min-height: 0; }
+  .station { background: var(--panel); border-radius: 8px; padding: 8px; overflow-y: auto; max-height: 40vh; min-height: 80px; }
+  .station h2 { font-size: 12px; color: var(--dim); letter-spacing: .1em; margin-bottom: 8px; position: sticky; top: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; margin-bottom: 6px; transition: transform .3s, border-color .3s;
+  }
+  .card.moved { animation: pop .6s; }
+  @keyframes pop { 0% { transform: scale(.9); border-color: var(--accent); } 100% { transform: scale(1); } }
+  .card .num { font-weight: 700; color: var(--accent); }
+  .card .title { display: block; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .meta { color: var(--dim); font-size: 12px; }
+  .card .agent { background: #2c3a4a; color: var(--accent); border-radius: 4px; padding: 0 5px; }
+  .card.blocked { border-color: var(--bad); }
+  .card.blocked .meta::before { content: "⛔ "; }
+  .card.drift { border-color: var(--warn); }
+  .card.waiting-dep { opacity: .6; }
+  .merged-lane .chip { display: inline-block; background: #1f3324; color: var(--ok); border-radius: 4px; padding: 1px 6px; margin: 2px; }
+  .dag { background: var(--panel); border-radius: 8px; padding: 8px; overflow-x: auto; }
+  .dag h2, .logpane h2 { font-size: 12px; color: var(--dim); letter-spacing: .1em; margin-bottom: 4px; }
+  .dag svg text { fill: var(--text); font-size: 12px; }
+  .logpane { background: var(--panel); border-radius: 8px; padding: 8px; max-height: 160px; overflow-y: auto; }
+  .logpane li { list-style: none; color: var(--dim); }
+  .logpane li b { color: var(--accent); font-weight: 600; }
+  .logpane time { color: var(--dim); margin-right: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="repo" id="repo">dev-loop</span>
+  <span class="stat">プロジェクト: <b id="projectCount">0</b></span>
+  <span class="stat">稼働ループ: <b id="runningLoops">0</b></span>
+  <span class="stat">blocked: <b id="blockedTotal">0</b></span>
+  <span class="stat warn" id="driftTotal"></span>
+  <span class="stat bad" id="errorTotal"></span>
+  <span class="spacer"></span>
+  <span class="stat" id="generatedAt"></span>
+</header>
+<div id="projects"></div>
+<script>
+const STATIONS = [
+  ['waiting', '待機'],
+  ['implementing', '実装'],
+  ['verifying', '検証'],
+  ['review', 'PR・レビュー'],
+  ['merged', '✓ マージ済み'],
+];
+let prevStations = {}; // 駅間移動の検出用（"name#number" → station）。Issue 番号はリポジトリ間で衝突するので name で区切る
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function cardEl(t, moved) {
+  const c = el('div', 'card');
+  if (t.blocked) c.classList.add('blocked');
+  if (t.drift) c.classList.add('drift');
+  if (t.station === 'waiting' && t.waitingOn.length) c.classList.add('waiting-dep');
+  if (moved) c.classList.add('moved');
+  const head = el('div');
+  head.append(el('span', 'num', `#${t.number}`), document.createTextNode(t.priority ? ' 🔥' : ''));
+  c.append(head, el('span', 'title', t.title || '(タイトル未取得)'));
+  const meta = el('div', 'meta');
+  if (t.agent) meta.append(el('span', 'agent', t.agent), document.createTextNode(' '));
+  if (t.prNumber) meta.append(document.createTextNode(`PR#${t.prNumber} `));
+  if (t.station === 'review' && t.reviewIteration) {
+    meta.append(document.createTextNode(`反復 ${t.reviewIteration}/3 `));
+    for (const r of t.reviewers) meta.append(document.createTextNode('⚙◉'));
+  }
+  if (t.blocked && t.blockedReason) meta.append(document.createTextNode(t.blockedReason));
+  if (t.station === 'waiting' && t.waitingOn.length) meta.append(document.createTextNode(`依存待ち: ${t.waitingOn.map((n) => '#' + n).join(' ')}`));
+  c.append(meta);
+  return c;
+}
+
+function renderLine(p, line, nextStations) {
+  line.replaceChildren();
+  for (const [id, label] of STATIONS) {
+    const col = el('div', 'station' + (id === 'merged' ? ' merged-lane' : ''));
+    col.append(el('h2', null, label));
+    const members = p.tickets.filter((t) => t.station === id);
+    if (id === 'merged') {
+      for (const t of members) col.append(el('span', 'chip', `#${t.number}`));
+    } else {
+      for (const t of members) {
+        const key = `${p.name}#${t.number}`;
+        col.append(cardEl(t, prevStations[key] && prevStations[key] !== t.station));
+      }
+    }
+    line.append(col);
+  }
+  for (const t of p.tickets) nextStations[`${p.name}#${t.number}`] = t.station;
+}
+
+function renderDag(s, box) {
+  box.replaceChildren();
+  const { nodes, edges, bottlenecks } = s.dag;
+  if (!nodes.length) { box.textContent = '依存関係なし'; return; }
+  // 深さ = 依存チェーンの長さで列を決める簡易レイアウト
+  const depth = {};
+  const depsOf = (n) => edges.filter((e) => e.to === n).map((e) => e.from);
+  const calc = (n, seen = new Set()) => {
+    if (depth[n] != null) return depth[n];
+    if (seen.has(n)) return 0; // 循環は深さ0扱い
+    seen.add(n);
+    const ds = depsOf(n);
+    return (depth[n] = ds.length ? Math.max(...ds.map((d) => calc(d, seen))) + 1 : 0);
+  };
+  nodes.forEach((n) => calc(n));
+  const cols = {};
+  nodes.forEach((n) => (cols[depth[n]] ??= []).push(n));
+  // 行ピッチは円（直径 32）＋円の上に置くラベル（⚠ボトルネック: 約 16px）が重ならない幅にする
+  const X = 130, Y = 52, R = 16;
+  const pos = {};
+  Object.entries(cols).forEach(([d, ns]) => ns.forEach((n, i) => (pos[n] = { x: 40 + d * X, y: 24 + i * Y })));
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  const stuck = new Set(s.tickets.filter((t) => t.blocked || t.waitingOn.length).map((t) => t.number));
+  for (const e of edges) {
+    const l = document.createElementNS(svgNS, 'line');
+    l.setAttribute('x1', pos[e.from].x + R); l.setAttribute('y1', pos[e.from].y);
+    l.setAttribute('x2', pos[e.to].x - R); l.setAttribute('y2', pos[e.to].y);
+    l.setAttribute('stroke', stuck.has(e.to) ? 'var(--bad)' : 'var(--border)');
+    l.setAttribute('stroke-width', '2');
+    svg.append(l);
+  }
+  for (const n of nodes) {
+    const g = document.createElementNS(svgNS, 'g');
+    const c = document.createElementNS(svgNS, 'circle');
+    c.setAttribute('cx', pos[n].x); c.setAttribute('cy', pos[n].y); c.setAttribute('r', R);
+    const t = s.tickets.find((x) => x.number === n);
+    c.setAttribute('fill', t?.station === 'merged' ? '#1f3324' : 'var(--card)');
+    c.setAttribute('stroke', bottlenecks.includes(n) ? 'var(--bad)' : stuck.has(n) ? 'var(--warn)' : 'var(--border)');
+    c.setAttribute('stroke-width', bottlenecks.includes(n) ? '3' : '1.5');
+    const label = document.createElementNS(svgNS, 'text');
+    label.setAttribute('x', pos[n].x); label.setAttribute('y', pos[n].y + 4);
+    label.setAttribute('text-anchor', 'middle');
+    label.textContent = `#${n}`;
+    g.append(c, label);
+    if (bottlenecks.includes(n)) {
+      const mark = document.createElementNS(svgNS, 'text');
+      mark.setAttribute('x', pos[n].x); mark.setAttribute('y', pos[n].y - R - 4);
+      mark.setAttribute('text-anchor', 'middle');
+      mark.textContent = '⚠ボトルネック';
+      g.append(mark);
+    }
+    svg.append(g);
+  }
+  box.append(svg);
+  // ラベルは円の外（上）に描くため、座標計算だけでは端が切れる。描画後の実寸に viewBox を合わせて全体を収める
+  const PAD = 4;
+  const b = svg.getBBox();
+  svg.setAttribute('viewBox', `${b.x - PAD} ${b.y - PAD} ${b.width + PAD * 2} ${b.height + PAD * 2}`);
+  svg.setAttribute('width', b.width + PAD * 2);
+  svg.setAttribute('height', b.height + PAD * 2);
+}
+
+// 1 プロジェクト分のセクション（ヘッダ 1 行 + 5 駅レーン + 依存 DAG + ログ）
+function renderProject(p, nextStations) {
+  const sec = el('section', 'project');
+  if (p.warnings.ghError || p.warnings.eventsMissing) sec.classList.add('has-error');
+  const head = el('div', 'project-head');
+  head.append(el('span', 'name', p.name));
+  head.append(el('span', 'stat', p.loop.running ? '◉ 稼働中' : '■ 停止中'));
+  const merged = el('span', 'stat', 'マージ: ');
+  merged.append(el('b', null, String(p.mergedThisLoop.length)), document.createTextNode('（今回ループ）'));
+  head.append(merged);
+  const blocked = el('span', 'stat', 'blocked: ');
+  blocked.append(el('b', null, String(p.tickets.filter((t) => t.blocked).length)));
+  head.append(blocked);
+  if (p.warnings.drift.length) {
+    const d = el('span', 'stat warn', `⚠ドリフト: ${p.warnings.drift.length}`);
+    d.title = p.warnings.drift.map((x) => `#${x.ticket} ${x.msg}`).join('\n');
+    head.append(d);
+  }
+  head.append(el('span', 'spacer'));
+  const sync = el('span', 'stat');
+  if (p.warnings.ghError) {
+    sync.className = 'stat bad';
+    sync.textContent = `GitHub 最終同期 ${p.warnings.ghFetchedAt ? new Date(p.warnings.ghFetchedAt).toLocaleTimeString('ja-JP') : 'なし'} ⚠`;
+    sync.title = p.warnings.ghError;
+  } else {
+    sync.textContent = p.warnings.ghFetchedAt ? `GitHub 同期 ${new Date(p.warnings.ghFetchedAt).toLocaleTimeString('ja-JP')}` : '';
+  }
+  head.append(sync, el('span', 'path', p.path));
+  sec.append(head);
+
+  const banners = [];
+  if (p.warnings.ghError) banners.push(`GitHub: ${p.warnings.ghError}`);
+  if (p.warnings.eventsMissing) banners.push('イベント未検出（dev-loop 未稼働 or 旧版）— GitHub 情報のみの表示');
+  if (p.warnings.badLines) banners.push(`壊れたイベント行: ${p.warnings.badLines}`);
+  sec.append(el('div', 'banner', banners.join(' / ')));
+
+  const line = el('div', 'line');
+  renderLine(p, line, nextStations);
+  sec.append(line);
+
+  const dag = el('div', 'dag');
+  dag.append(el('h2', null, '依存 DAG'));
+  const dagBox = el('div');
+  dag.append(dagBox);
+  sec.append(dag);
+
+  const logpane = el('div', 'logpane');
+  logpane.append(el('h2', null, 'ログ'));
+  const ul = el('ul');
+  ul.replaceChildren(...p.log.map((e) => {
+    const li = el('li');
+    const time = el('time', null, new Date(e.ts).toLocaleTimeString('ja-JP'));
+    li.append(time, el('b', null, `#${e.ticket}`), document.createTextNode(` ${e.text}`));
+    return li;
+  }));
+  logpane.append(ul);
+  sec.append(logpane);
+  return { sec, dagBox };
+}
+
+function render(s) {
+  if (!s || !s.projects) return;
+  const sum = s.summary ?? {};
+  document.getElementById('repo').textContent = s.projects.length === 1 ? s.projects[0].name : 'dev-loop';
+  document.getElementById('projectCount').textContent = sum.projectCount ?? s.projects.length;
+  document.getElementById('runningLoops').textContent = sum.runningLoops ?? 0;
+  document.getElementById('blockedTotal').textContent = sum.blocked ?? 0;
+  document.getElementById('driftTotal').textContent = sum.drift ? `⚠ドリフト: ${sum.drift}` : '';
+  document.getElementById('errorTotal').textContent = sum.errors ? `⚠エラー: ${sum.errors} プロジェクト` : '';
+  document.getElementById('generatedAt').textContent = s.generatedAt ? `更新 ${new Date(s.generatedAt).toLocaleTimeString('ja-JP')}` : '';
+
+  const root = document.getElementById('projects');
+  const nextStations = {};
+  const pending = [];
+  root.replaceChildren();
+  for (const p of s.projects) {
+    const { sec, dagBox } = renderProject(p, nextStations);
+    root.append(sec);
+    pending.push([p, dagBox]);
+  }
+  // DAG は getBBox に描画済みの DOM が要るので、append 後に描く
+  for (const [p, dagBox] of pending) renderDag(p, dagBox);
+  prevStations = nextStations;
+}
+
+fetch('/api/state').then((r) => r.json()).then(render);
+new EventSource('/events').onmessage = (e) => render(JSON.parse(e.data));
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{"ts":"2026-08-14T09:00:00+09:00","agent":"main","ticket":null,"event":"loop","detail":{"action":"start"}}
+{"ts":"2026-08-14T09:01:00+09:00","agent":"main","ticket":3,"event":"stage","stage":"selected"}
+{"ts":"2026-08-14T09:02:00+09:00","agent":"main","ticket":3,"event":"stage","stage":"implementing"}
+{"ts":"2026-08-14T09:20:00+09:00","agent":"main","ticket":3,"event":"stage","stage":"verifying"}
+{"ts":"2026-08-14T09:25:00+09:00","agent":"main","ticket":3,"event":"stage","stage":"pr-created","detail":{"pr":41}}
+{"ts":"2026-08-14T09:30:00+09:00","agent":"main","ticket":3,"event":"stage","stage":"review","detail":{"iteration":1,"reviewers":["code-reviewer","pr-test-analyzer","silent-failure-hunter"]}}
+{"ts":"2026-08-14T09:40:00+09:00","agent":"main","ticket":3,"event":"stage","stage":"merging"}
+{"ts":"2026-08-14T09:42:00+09:00","agent":"main","ticket":3,"event":"stage","stage":"merged"}
+{"ts":"2026-08-14T09:45:00+09:00","agent":"ticket-10","ticket":10,"event":"stage","stage":"selected"}
+{"ts":"2026-08-14T09:46:00+09:00","agent":"ticket-10","ticket":10,"event":"stage","stage":"implementing"}
+{"ts":"2026-08-14T10:00:00+09:00","agent":"ticket-10","ticket":10,"event":"log","detail":{"text":"コミット: ショートカットの定義を追加"}}
+{"ts":"2026-08-14T10:10:00+09:00","agent":"ticket-10","ticket":10,"event":"stage","stage":"pr-created","detail":{"pr":42}}
+{"ts":"2026-08-14T10:12:00+09:00","agent":"ticket-10","ticket":10,"event":"stage","stage":"review","detail":{"iteration":2,"reviewers":["code-reviewer","pr-test-analyzer","silent-failure-hunter"]}}
+{"ts":"2026-08-14T10:15:00+09:00","agent":"ticket-29","ticket":29,"event":"stage","stage":"selected"}
+{"ts":"2026-08-14T10:16:00+09:00","agent":"ticket-29","ticket":29,"event":"stage","stage":"implementing"}
+{"ts":"2026-08-14T10:30:00+09:00","agent":"ticket-29","ticket":29,"event":"stage","stage":"verifying"}
+{"ts":"2026-08-14T10:40:00+09:00","agent":"main","ticket":20,"event":"stage","stage":"implementing"}
+{"ts":"2026-08-14T10:45:00+09:00","agent":"main","ticket":20,"event":"stage","stage":"blocked","detail":{"reason":"設計の矛盾: 受け入れ条件が相互排他"}}

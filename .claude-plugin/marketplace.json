@@ -1,0 +1,15 @@
+{
+  "name": "dev-team",
+  "owner": {
+    "name": "nesheep5"
+  },
+  "metadata": {
+    "description": "要件の Issue 化から、ワークツリーでの実装・PR・反復レビュー・squash マージまでの開発ループを回す Claude Code プラグイン dev-team"
+  },
+  "plugins": [
+    {
+      "name": "dev-team",
+      "source": "./plugins/dev-team"
+    }
+  ]
+}
